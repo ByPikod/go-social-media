@@ -1,0 +1,86 @@
+version: "3.9"
+services:
+    postgres:
+      image: postgres:14-alpine
+      ports:
+        - 5432:5432
+      volumes:
+        - ./data/postgres:/var/lib/postgresql/data
+      environment:
+        - POSTGRES_PASSWORD=merhaba123
+        - POSTGRES_USER=root
+        - POSTGRES_DB=socialmedia
+    nginx:
+      build: ./nginx/
+      container_name: nginx-container
+      ports:
+        - 80:80
+      volumes:
+        - ./php/:/var/www/html/
+    go:
+      container_name: go
+      build: ./socialmedia/
+      ports:
+        - 8080:8080
+      depends_on:
+        - postgres
+        - kafka
+    go-notifier:
+      container_name: go-notifier
+      build:
+        context: notifier
+      depends_on:
+        - kafka
+    zookeeper:
+      image: confluentinc/cp-zookeeper:latest
+      environment:
+        ZOOKEEPER_CLIENT_PORT: 2181
+        ZOOKEEPER_TICK_TIME: 2000
+      ports:
+        - 22181:2181
+    kafka:
+      image: confluentinc/cp-kafka:latest
+      depends_on:
+        - zookeeper
+      ports:
+        - 29092:29092
+      environment:
+        KAFKA_BROKER_ID: 1
+        KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+        KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+        KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+        KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    kafka-ui:
+      container_name: kafka-ui
+      image: provectuslabs/kafka-ui:latest
+      ports:
+        - 8085:8080
+      environment:
+        DYNAMIC_CONFIG_ENABLED: 'true'
+      volumes:
+        - ./kafka-ui.yml:/etc/kafkaui/dynamic_config.yaml
+    prometheus:
+      image: prom/prometheus:latest
+      container_name: prometheus
+      ports:
+        - "9090:9090"
+      volumes:
+        - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      command:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--web.enable-remote-write-receiver'
+        - '--enable-feature=native-histograms'
+      depends_on:
+        - go
+    grafana:
+      image: grafana/grafana:latest
+      container_name: grafana
+      ports:
+        - "3000:3000"
+      environment:
+        - GF_SECURITY_ADMIN_PASSWORD=root
+      volumes:
+        - ./grafana.db:/var/lib/grafana/grafana.db
+      depends_on:
+        - prometheus
