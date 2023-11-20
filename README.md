@@ -1,3 +1,5 @@
+Aşağıdaki TO-DO listesinin 6 saatte içerisinde hedeflenmektedir.
+
 # TODO list
 
 - [x] Kullanıcı Üye Olma / Giriş Yapma / Çıkış Yapma
